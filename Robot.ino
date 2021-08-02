@@ -79,8 +79,8 @@ void loop() { //does this constantly after setup()
   //if a measurement is in range, print it to serial, otherwise it's out of range
   lox.rangingTest(&measure, false); //sends if the measurement is in range or not (and distance I think) to "measure"; set the 2nd arg to true to get "debug data printout" (from the example program)
   if (measure.RangeStatus != 4) { //assuming this means "if the measurement is in range" (4 means it isn't)
-    Serial.println("t " + (String) measure.RangeMilliMeter);
-//    Serial.println(measure.RangeMilliMeter);
+    Serial.print("t ");
+    Serial.println(measure.RangeMilliMeter);
   } else Serial.println("t -1");
 
 
@@ -92,7 +92,8 @@ void loop() { //does this constantly after setup()
   imu.readGyro();
   angle += ((float) imu.g.z - gyroZOffset) * 70 * difference / 1000000000; //angle += //0.07 dps/digit
   //sometimes the zero offset is not 100% accurate, so the angle will change even though the robot is still - to counter this only read the angle if the encoders are changing
-  Serial.println("g " + (String) angle);
+  Serial.print("g ");
+  Serial.println(angle);
 
 
   //encoders
@@ -101,17 +102,25 @@ void loop() { //does this constantly after setup()
     int16_t left = encoders.getCountsLeft();
     int16_t right = encoders.getCountsRight();
 
-    if (left != lastLeft && right != lastRight) Serial.println("e " + (String) left + "," + (String) right); //if the robot hasn't stayed still print to Serial
+    if (left != lastLeft && right != lastRight) { //if the robot hasn't stayed still print to Serial
+      Serial.println("e ");
+      Serial.print(left);
+      Serial.print(",");
+      Serial.println(right);
+    }
     lastLeft = left;
     lastRight = right;
   }
 
-  //I couldn't add this since it took too much space - it's at 27594 bytes out of 28672 bytes right now
-//  //proximity
-//  if ((uint8_t) (millis() - lastMilli[1]) >= 100) {
-//    lastMilli[1] = millis();
-//    prox.read(); //sends out pulses from the sensors and (I think) stores the values back into prox; retrieve the data with the getter functions
-//    Serial.println("p " + (String) prox.countsFrontWithRightLeds() + "," + (String) prox.countsFrontWithRightLeds());
-//  }
+//  I couldn't add this since it took too much space - it's at 27594 bytes out of 28672 bytes right now
+  //proximity
+  if ((uint8_t) (millis() - lastMilli[1]) >= 100) {
+    lastMilli[1] = millis();
+    prox.read(); //sends out pulses from the sensors and (I think) stores the values back into prox; retrieve the data with the getter functions
+    Serial.print("p ");
+    Serial.print(prox.countsFrontWithRightLeds());
+    Serial.print(",");
+    Serial.println(prox.countsFrontWithRightLeds());
+  }
   
 }
