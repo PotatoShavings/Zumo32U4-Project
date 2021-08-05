@@ -36,12 +36,13 @@ float angle = 0;
 float gyroZOffset = 0;
 
 //encoders
-static uint16_t lastLeft = 0;
-static uint16_t lastRight = 0;
+static int16_t lastLeft = 0;
+static int16_t lastRight = 0;
+boolean hasTurned = false;
 
 //general time stuff
 static uint16_t lastMicro = 0;
-static uint8_t lastMilli [2] = {}; //used by 2 sensors
+static uint8_t lastMilli = 0;
 
 void setup() { //called once at the beginning
   //starting up the robot and opening serial port
@@ -59,6 +60,7 @@ void setup() { //called once at the beginning
   imu.init();
   imu.enableDefault();
   imu.configureForTurnSensing();
+  
   //finds the zero offset for the gyro
   for (int i = 0; i < 1000; i++) {
     while (!imu.gyroDataReady()) {}
@@ -73,6 +75,9 @@ void setup() { //called once at the beginning
 }
 
 void loop() { //does this constantly after setup()
+  if (!((uint8_t) (millis() - lastMilli) >= 100)) return; //lets all the sensors read data at the same time and print to Serial accordingly instead of at varying rates
+  lastMilli = millis();
+  
   //time of flight
   VL53L0X_RangingMeasurementData_t measure;
 
@@ -84,43 +89,38 @@ void loop() { //does this constantly after setup()
   } else Serial.println("t -1");
 
 
+  //encoders
+  int16_t left = encoders.getCountsLeft();
+  int16_t right = encoders.getCountsRight();
+  
+  if (left != lastLeft || right != lastRight) { //if the robot hasn't stayed still print to Serial
+    Serial.print("e ");
+    Serial.print(left);
+    Serial.print(",");
+    Serial.println(right);
+  }
+  hasTurned = (left % right != lastLeft % lastRight); //hasTurned = if the robot hasn't stayed still OR if the robot hasn't moved straight forwards/backwards (Will be true whenever the angle of the robot changes)
+  lastLeft = left;
+  lastRight = right;
+  
+
+
   //gyro
   uint16_t currentMicro = micros();
   uint16_t difference = currentMicro - lastMicro;
   lastMicro = currentMicro;
 
   imu.readGyro();
-  angle += ((float) imu.g.z - gyroZOffset) * 70 * difference / 1000000000; //angle += //0.07 dps/digit
+  if (hasTurned) angle += ((float) imu.g.z - gyroZOffset) * 70 * difference / 1000000000; //angle += //0.07 dps/digit
   //sometimes the zero offset is not 100% accurate, so the angle will change even though the robot is still - to counter this only read the angle if the encoders are changing
   Serial.print("g ");
   Serial.println(angle);
 
 
-  //encoders
-  if ((uint8_t) (millis() - lastMilli[0]) >= 100) {
-    lastMilli[0] = millis();
-    int16_t left = encoders.getCountsLeft();
-    int16_t right = encoders.getCountsRight();
-
-    if (left != lastLeft && right != lastRight) { //if the robot hasn't stayed still print to Serial
-      Serial.println("e ");
-      Serial.print(left);
-      Serial.print(",");
-      Serial.println(right);
-    }
-    lastLeft = left;
-    lastRight = right;
-  }
-
-//  I couldn't add this since it took too much space - it's at 27594 bytes out of 28672 bytes right now
   //proximity
-  if ((uint8_t) (millis() - lastMilli[1]) >= 100) {
-    lastMilli[1] = millis();
-    prox.read(); //sends out pulses from the sensors and (I think) stores the values back into prox; retrieve the data with the getter functions
-    Serial.print("p ");
-    Serial.print(prox.countsFrontWithRightLeds());
-    Serial.print(",");
-    Serial.println(prox.countsFrontWithRightLeds());
-  }
-  
+  prox.read(); //sends out pulses from the sensors and (I think) stores the values back into prox; retrieve the data with the getter functions
+  Serial.print("p ");
+  Serial.print(prox.countsFrontWithRightLeds());
+  Serial.print(",");
+  Serial.println(prox.countsFrontWithRightLeds());
 }
