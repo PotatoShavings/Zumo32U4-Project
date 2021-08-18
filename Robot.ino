@@ -3,9 +3,7 @@
 #include "Adafruit_VL53L0X.h" //time-of-flight sensor
 
 
-/*
- * First version of the program :)
- * 
+/* 
  * Notes:
  * The program only reads data from the sensors and prints it to serial right now
  * I haven't included the ultrasonic sensor to this program since it's pretty inaccurate, and I haven't had the time to add the accelerometer (and also since the code looks complicated)
@@ -44,6 +42,9 @@ boolean hasTurned = false;
 static uint16_t lastMicro = 0;
 static uint8_t lastMilli = 0;
 
+//motors
+int movement = -1;
+
 void setup() { //called once at the beginning
   //starting up the robot and opening serial port
   Wire.begin();
@@ -53,7 +54,7 @@ void setup() { //called once at the beginning
   //if the time of flight sensor didn't boot, send a message through serial and stop the program
   if (!lox.begin()) {
     Serial.println("t -2");
-    while (true) {}
+    exit(0);
   }
 
   //starting imu
@@ -111,8 +112,8 @@ void loop() { //does this constantly after setup()
   lastMicro = currentMicro;
 
   imu.readGyro();
-  if (hasTurned) angle += ((float) imu.g.z - gyroZOffset) * 70 * difference / 1000000000; //angle += //0.07 dps/digit
-  //sometimes the zero offset is not 100% accurate, so the angle will change even though the robot is still - to counter this only read the angle if the encoders are changing
+  //only changes the angle when the wheels turn (when the robot isn't still, moving straight forwards, or moving straight backwards)
+  if (hasTurned) angle += (((float) imu.g.z - gyroZOffset) * 70 * difference / 1000000000) * 4; //0.07 dps/digit
   Serial.print("g ");
   Serial.println(angle);
 
@@ -123,4 +124,23 @@ void loop() { //does this constantly after setup()
   Serial.print(prox.countsFrontWithRightLeds());
   Serial.print(",");
   Serial.println(prox.countsFrontWithRightLeds());
+
+  //follow a red ball
+  if (Serial.available() > 0) {
+    movement = Serial.read() - 48; //Serial.read() returns the number in ASCII decimal
+    switch(movement) {
+      case 0: //turn left
+        motors.setLeftSpeed(-100);
+        motors.setRightSpeed(100);
+        break;
+      case 1: //turn right
+        motors.setLeftSpeed(100);
+        motors.setRightSpeed(-100);
+        break;
+      case 2: //move forward
+        motors.setLeftSpeed(150);
+        motors.setRightSpeed(150);
+        break;
+    }
+  }
 }
